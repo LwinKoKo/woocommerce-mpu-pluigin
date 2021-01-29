@@ -101,8 +101,6 @@ function init_mpu_gateway_class() {
 			return substr($text, 0, -1 * $pad);
 		}
 	}
-	
-	$aes = new AES('n6atpjz75hw213yfldg80ocreb9vukiq');
  
 	class WC_MPU_Gateway extends WC_Payment_Gateway {
  
@@ -138,12 +136,11 @@ function init_mpu_gateway_class() {
 			// This action hook saves the settings
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		 
-			// We need custom JavaScript to obtain a token
-			//add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts' ) );
-		 
 			// You can also register a webhook here
 			add_action( 'woocommerce_api_mpu_payment_complete', array( $this, 'webhook' ) );
 			
+			//Redirect to reciepe page
+			add_action('woocommerce_receipt_mpu', array( $this,'receipt_page' ) );
 		}
  
 		/**
@@ -219,48 +216,6 @@ function init_mpu_gateway_class() {
 		}
  
 		/*
-		 * Custom CSS and JS, in most cases required only when you decided to go with a custom credit card form
-		 
-	 	public function payment_scripts() {
- 
-			// we need JavaScript to process a token only on cart/checkout pages, right?
-			if ( ! is_cart() && ! is_checkout() && ! isset( $_GET['pay_for_order'] ) ) {
-				return;
-			}
-		 
-			// if our payment gateway is disabled, we do not have to enqueue JS too
-			if ( 'no' === $this->enabled ) {
-				return;
-			}
-		 
-			// no reason to enqueue JavaScript if API keys are not set
-			if ( empty( $this->private_key ) || empty( $this->publishable_key ) ) {
-				return;
-			}
-		 
-			// do not work with card detailes without SSL unless your website is in a test mode
-			if ( ! $this->testmode && ! is_ssl() ) {
-				return;
-			}
-		 
-			// let's suppose it is our payment processor JavaScript that allows to obtain a token
-			wp_enqueue_script( 'misha_js', 'https://www.mishapayments.com/api/token.js' );
-		 
-			// and this is our custom JS in your plugin directory that works with token.js
-			wp_register_script( 'woocommerce_misha', plugins_url( 'misha.js', __FILE__ ), array( 'jquery', 'misha_js' ) );
-		 
-			// in most payment processors you have to use PUBLIC KEY to obtain a token
-			wp_localize_script( 'woocommerce_misha', 'misha_params', array(
-				'publishableKey' => $this->publishable_key
-			) );
-		 
-			wp_enqueue_script( 'woocommerce_misha' );
-		 
-		}
-		
-		*/
- 
-		/*
  		 * Fields validation, more in Step 5
 		 */
 		public function validate_fields(){
@@ -279,17 +234,46 @@ function init_mpu_gateway_class() {
 		public function process_payment( $order_id ) {
  
 			global $woocommerce;
+			
+			$order = new WC_Order($order_id);
+			
+			if (version_compare(WOOCOMMERCE_VERSION, '2.1.0', '>=')) { // For WC 2.1.0
+                $checkout_payment_url = $order->get_checkout_payment_url(true);
+            } else {
+                $checkout_payment_url = get_permalink(get_option('woocommerce_pay_page_id'));
+            }
+            
+            return array('result' => 'success','redirect' => add_query_arg('order', $order->id, add_query_arg('key', $order->order_key, $checkout_payment_url)));
 		 
+		}
+		
+		/* Receipt Page */
+        function receipt_page($order) {            
+            echo $this->generate_mpu_form($order);
+        }
+        
+        /* Generate button link */
+        function generate_mpu_form($order_id) {   
+
+			
+			global $woocommerce;
+            $order = new WC_Order( $order_id );
+			
+			//$aes = new AES('n6atpjz75hw213yfldg80ocreb9vukiq');
+			
+            $redirect_url=$this->get_return_url( $order );
+			
 			// we need it to get any order detailes
 			$service_provider = 'MPU';
 			$order = wc_get_order( $order_id );
 			$amount = $order->order_total;
 			$companyId = $this->company_id;
 			$transactionid = '0MPUMTG00'.$order_id;
-			$encryptedString = $aes->encrypt($transactionid.'|'.$amount.'|'.$companyId.'|'.$service_provider);
+			//$encryptedString = $aes->encrypt($transactionid.'|'.$amount.'|'.$companyId.'|'.$service_provider);
+			$encryptedString = '';
 			$phonenumber = $this->phone_no;
 			
-			if($this->settings['test_mode']){
+			if($this->testmode){
 				$sandbox = 'ON';
 				$url  = 'https://122.248.120.252:60145/UAT/Payment/Payment/pay?';
 			}
@@ -297,12 +281,8 @@ function init_mpu_gateway_class() {
 				$sandbox = 'GLVE';
 				$url  = 'https://www.mpu-ecommerce.com/Payment/Payment/pay?';
 			}
-		 
-		 
-			/*
-			 * Array with parameters for API interaction
-			 */
 			
+			/*
 			$body = array(
 				'paymenttype' => $service_provider,
 				'encryptedString' => $encryptedString,
@@ -317,6 +297,7 @@ function init_mpu_gateway_class() {
 			$result = json_decode(httpPost($url, $test_param, 'json'));
 			$decrypted_value = $aes->decrypt($result->encryptedString);
 			$mpu = json_decode($decrypted_value);
+		
 			$mpu_url = array(
 				'currencyCode' => $mpu->currencyCode,
 				'merchantID' => $mpu->merchant,
@@ -328,66 +309,34 @@ function init_mpu_gateway_class() {
 				'amount' => $mpu->amount,
 				'hashValue' => $mpu->hashValue,
 			);
+			*/
 			
-			echo '<form id="form" action="'.$mpu->url.'" method="post">';
-
-			foreach($mpu_url as $mk => $mv) {
-				echo '<input type="hidden" name="'.$mk.'" value="'.$mv.'" />';
-			}
-
-			echo '</form>';
-			echo '<script type="text/javascript">document.getElementById("form").submit();</script>';
-			
-			/*
-			$args = array(
-				'method'      => 'POST',
-				'timeout'     => 45,
-				'sslverify'   => false,
-				'headers'     => array(
-					'Content-Type'  => 'application/json',
-				),
-				'body'        => json_encode($body),
+			$mpu_url = array(
+				'currencyCode' => '104',
+				'merchantID' => '203104001003144',
+				'invoiceNo' => '0MPUMTF65',
+				'productDesc' => 'Thirdparty',
+				'userDefined1' => 'userdefined1',
+				'userDefined2' => 'userdefined2',
+				'userDefined3' => 'mtg',
+				'amount' => '000000100000',
+				'hashValue' => 'A3B5B4F0605584637E8CC4D3AE77D9CF79CC1E86',
 			);
 			
-			 * Your API interaction could be built with wp_remote_post()
-			 
-			 $response = wp_remote_post( $url, $args );
-		 
-		 
-			 if( !is_wp_error( $response ) ) {
-		 
-				 $body = json_decode( $response['body'], true );
-		 
-				 // it could be different depending on your payment processor
-				 if ( $body['response']['responseCode'] == 'APPROVED' ) {
-		 
-					// we received the payment
-					$order->payment_complete();
-					$order->reduce_order_stock();
-		 
-					// some notes to customer (replace true with false to make it private)
-					$order->add_order_note( 'Hey, your order is paid! Thank you!', true );
-		 
-					// Empty cart
-					$woocommerce->cart->empty_cart();
-		 
-					// Redirect to the thank you page
-					return array(
-						'result' => 'success',
-						'redirect' => $this->get_return_url( $order )
-					);
-		 
-				 } else {
-					wc_add_notice(  'Please try again.', 'error' );
-					return;
-				}
-		 
-			} else {
-				wc_add_notice(  'Connection error.', 'error' );
-				return;
-			}*/
-		 
-		}
+            
+            $strHtml = '';
+			$strHtml .= '<form action="' . esc_url($url) . '" method="post" id="form">';
+            
+			foreach($mpu_url as $mk => $mv) {
+				$strHtml .= '<input type="hidden" name="'.$mk.'" value="'.$mv.'" />';
+			}
+            
+			$strHtml .= '<input type="submit" class="button-alt" id="submit" value="Pay with MPU" />';
+            $strHtml .= '&nbsp;&nbsp;&nbsp;&nbsp<a class="button cancel" href="' . esc_url($order->get_cancel_order_url()) . '">Cancel order &amp; restore cart</a>';
+            $strHtml .= '</form>';
+			
+            return $strHtml;
+        }
 		
 		function httpPost($url, $data){
 			$curl = curl_init($url);
