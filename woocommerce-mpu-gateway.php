@@ -27,79 +27,79 @@ function init_mpu_gateway_class() {
 	class AES extends WC_Payment_Gateway{
 		
 		protected $cipher;
-        protected $mode;
-        protected $pad_method;
-        protected $secret_key;
-        protected $iv;
-     
-        public function __construct($key, $method = 'pkcs7', $iv = '', $mode = MCRYPT_MODE_ECB, $cipher = MCRYPT_RIJNDAEL_128)
-        {
-            $this->secret_key = $key;
-            $this->pad_method =$method;
-            $this->iv = $iv;
-            $this->mode = $mode;
-            $this->cipher = $cipher;
-        }
-     
-        protected function pad_or_unpad($str, $ext)
-        {
-            if (!is_null($this->pad_method)) {
-                $func_name = __CLASS__ . '::' . $this->pad_method . '_' . $ext . 'pad';
-                if (is_callable($func_name)) {
-                    $size = mcrypt_get_block_size($this->cipher, $this->mode);
-                    return call_user_func($func_name, $str, $size);
-                }
-            }
-            return $str;
-        }
-     
-        protected function pad($str)
-        {
-            return $this->pad_or_unpad($str, '');
-        }
-     
-        protected function unpad($str)
-        {
-            return $this->pad_or_unpad($str, 'un');
-        }
-     
-        public function encrypt($str)
-        {
-            $str = $this->pad($str);
-            $td = mcrypt_module_open($this->cipher, '', $this->mode, '');
-            if (empty($this->iv)) {
-                $iv = @mcrypt_create_iv(mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
-            } else {
-                $iv = $this->iv;
-            }
-            
-            mcrypt_generic_init($td, $this->secret_key, $iv);
-            $cyper_text = mcrypt_generic($td, $str);
-            $rt = base64_encode($cyper_text);
-            mcrypt_generic_deinit($td);
-            mcrypt_module_close($td);
-            return $rt;
-        }
+		protected $mode;
+		protected $pad_method;
+		protected $secret_key;
+		protected $iv;
 
-    	function decrypt($ciphertext) {
-    		$chiperRaw = base64_decode($ciphertext);
-    		$originalData = openssl_decrypt($chiperRaw, 'AES-256-ECB', $this->secret_key, OPENSSL_RAW_DATA);
-    		return $originalData;
-    	}
-     
-        public static function pkcs7_pad($text, $blocksize)
-        {
-            $pad = $blocksize - (strlen($text) % $blocksize);
-            return $text . str_repeat(chr($pad), $pad);
-        }
-     
-        public static function pkcs7_unpad($text)
-        {
-            $pad = ord($text[strlen($text) - 1]);
-            if ($pad > strlen($text)) return false;
-            if (strspn($text, chr($pad), strlen($text) - $pad) != $pad) return false;
-            return substr($text, 0, -1 * $pad);
-        }
+		public function __construct($key, $method = 'pkcs7', $iv = '', $mode = MCRYPT_MODE_ECB, $cipher = MCRYPT_RIJNDAEL_128)
+		{
+		    	$this->secret_key = $key;
+		    	$this->pad_method =$method;
+		    	$this->iv = $iv;
+		    	$this->mode = $mode;
+		    	$this->cipher = $cipher;
+		}
+
+		protected function pad_or_unpad($str, $ext)
+		{
+		    	if (!is_null($this->pad_method)) {
+				$func_name = __CLASS__ . '::' . $this->pad_method . '_' . $ext . 'pad';
+				if (is_callable($func_name)) {
+			    		$size = mcrypt_get_block_size($this->cipher, $this->mode);
+			    		return call_user_func($func_name, $str, $size);
+				}
+		    	}
+		    	return $str;
+		}
+
+		protected function pad($str)
+		{
+		    	return $this->pad_or_unpad($str, '');
+		}
+
+		protected function unpad($str)
+		{
+		    	return $this->pad_or_unpad($str, 'un');
+		}
+
+		public function encrypt($str)
+		{
+		    	$str = $this->pad($str);
+		    	$td = mcrypt_module_open($this->cipher, '', $this->mode, '');
+		    	if (empty($this->iv)) {
+				$iv = @mcrypt_create_iv(mcrypt_enc_get_iv_size($td), MCRYPT_RAND);
+		    	} else {
+				$iv = $this->iv;
+		    	}
+
+		    	mcrypt_generic_init($td, $this->secret_key, $iv);
+		    	$cyper_text = mcrypt_generic($td, $str);
+		    	$rt = base64_encode($cyper_text);
+		    	mcrypt_generic_deinit($td);
+		    	mcrypt_module_close($td);
+		    	return $rt;
+		}
+
+		function decrypt($ciphertext) {
+			$chiperRaw = base64_decode($ciphertext);
+			$originalData = openssl_decrypt($chiperRaw, 'AES-256-ECB', $this->secret_key, OPENSSL_RAW_DATA);
+			return $originalData;
+		}
+
+		public static function pkcs7_pad($text, $blocksize)
+		{
+		    	$pad = $blocksize - (strlen($text) % $blocksize);
+		    	return $text . str_repeat(chr($pad), $pad);
+		}
+
+		public static function pkcs7_unpad($text)
+		{
+		    	$pad = ord($text[strlen($text) - 1]);
+		    	if ($pad > strlen($text)) return false;
+		    	if (strspn($text, chr($pad), strlen($text) - $pad) != $pad) return false;
+		    	return substr($text, 0, -1 * $pad);
+		}
 	}
  
 	class WC_MPU_Gateway extends WC_Payment_Gateway {
@@ -238,22 +238,22 @@ function init_mpu_gateway_class() {
 			$order = new WC_Order($order_id);
 			
 			if (version_compare(WOOCOMMERCE_VERSION, '2.1.0', '>=')) { // For WC 2.1.0
-                $checkout_payment_url = $order->get_checkout_payment_url(true);
-            } else {
-                $checkout_payment_url = get_permalink(get_option('woocommerce_pay_page_id'));
-            }
-            
-            return array('result' => 'success','redirect' => add_query_arg('order', $order->id, add_query_arg('key', $order->order_key, $checkout_payment_url)));
+				$checkout_payment_url = $order->get_checkout_payment_url(true);
+			} else {
+				$checkout_payment_url = get_permalink(get_option('woocommerce_pay_page_id'));
+			}
+
+			return array('result' => 'success','redirect' => add_query_arg('order', $order->id, add_query_arg('key', $order->order_key, $checkout_payment_url)));
 		 
 		}
 		
 		/* Receipt Page */
-        function receipt_page($order) {            
-            echo $this->generate_mpu_form($order);
-        }
-        
-        /* Generate button link */
-        function generate_mpu_form($order_id) {   
+		function receipt_page($order) {            
+		        echo $this->generate_mpu_form($order);
+		}
+
+		/* Generate button link */
+		function generate_mpu_form($order_id) {   
 
 			session_start();
  
@@ -264,11 +264,11 @@ function init_mpu_gateway_class() {
 			}
 			
 			global $woocommerce;
-            $order = new WC_Order( $order_id );
+            		$order = new WC_Order( $order_id );
 			
 			$aes = new AES('n6atpjz75hw213yfldg80ocreb9vukiq'); //key //‘transactionid|amount|companyId|paymenttype’
 			
-            $redirect_url=$this->get_return_url( $order );
+            		$redirect_url=$this->get_return_url( $order );
 			
 			// we need it to get any order detailes
 			$service_provider = 'MPU';
@@ -315,30 +315,30 @@ function init_mpu_gateway_class() {
 				'hashValue' => $mpu->hashValue,
 			);
             
-            $strHtml = '';
+            		$strHtml = '';
 			$strHtml .= '<form action="' . esc_url($url) . '" method="post" id="form">';
             
 			foreach($mpu_url as $mk => $mv) {
 				$strHtml .= '<input type="hidden" name="'.$mk.'" value="'.$mv.'" />';
 			}
-            $strHtml .= '<p><strong>Thank you for your order.</strong> <br/>This will redirect to MPU payment page if you click on button "Pay with MPU".</p>';
+		        $strHtml .= '<p><strong>Thank you for your order.</strong> <br/>This will redirect to MPU payment page if you click on button "Pay with MPU".</p>';
 			$strHtml .= '<input type="submit" class="button-alt" id="submit" value="Pay with MPU" />';
-            $strHtml .= '&nbsp;&nbsp;&nbsp;&nbsp<a class="button cancel" href="' . esc_url($order->get_cancel_order_url()) . '">Cancel order &amp; restore cart</a>';
-            $strHtml .= '</form>';
-			
-            return $strHtml;
-        }
+		        $strHtml .= '&nbsp;&nbsp;&nbsp;&nbsp<a class="button cancel" href="' . esc_url($order->get_cancel_order_url()) . '">Cancel order &amp; restore cart</a>';
+		        $strHtml .= '</form>';
+
+		        return $strHtml;
+                }
 		
 		function httpPost($url, $data){
-            $curl = curl_init($url);
-            curl_setopt($curl, CURLOPT_POST, true);
-        	curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
-        	curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            $response = curl_exec($curl);
-            curl_close($curl);
-            return $response;
-        }
+			$curl = curl_init($url);
+			curl_setopt($curl, CURLOPT_POST, true);
+			curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
+			curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+			curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+			$response = curl_exec($curl);
+			curl_close($curl);
+			return $response;
+                }
  
 		/*
 		 * In case you need a webhook, like PayPal IPN etc
