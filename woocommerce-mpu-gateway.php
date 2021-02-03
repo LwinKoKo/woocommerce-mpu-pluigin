@@ -255,6 +255,13 @@ function init_mpu_gateway_class() {
         /* Generate button link */
         function generate_mpu_form($order_id) {   
 
+			session_start();
+ 
+			if(isset($_SESSION['count'])){
+			  $_SESSION['count'] = $_SESSION['count']+ 1;
+			}else{
+			  $_SESSION['count'] = 1;
+			}
 			
 			global $woocommerce;
             $order = new WC_Order( $order_id );
@@ -268,7 +275,7 @@ function init_mpu_gateway_class() {
 			$order = wc_get_order( $order_id );
 			$amount = $order->order_total;
 			$companyId = $this->company_id;
-			$transactionid = '0MPUMTG00'.$order_id;
+			$transactionid = '0MPUMTG00'.$order_id.$_SESSION['count'];
 			$encryptedString = $aes->encrypt($transactionid.'|'.$amount.'|'.$companyId.'|'.$service_provider);
 			$phonenumber = $this->phone_no;
 			
@@ -314,7 +321,7 @@ function init_mpu_gateway_class() {
 			foreach($mpu_url as $mk => $mv) {
 				$strHtml .= '<input type="hidden" name="'.$mk.'" value="'.$mv.'" />';
 			}
-            
+            $strHtml .= '<p><strong>Thank you for your order.</strong> <br/>This will redirect to MPU payment page if you click on button "Pay with MPU".</p>';
 			$strHtml .= '<input type="submit" class="button-alt" id="submit" value="Pay with MPU" />';
             $strHtml .= '&nbsp;&nbsp;&nbsp;&nbsp<a class="button cancel" href="' . esc_url($order->get_cancel_order_url()) . '">Cancel order &amp; restore cart</a>';
             $strHtml .= '</form>';
